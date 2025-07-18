@@ -17,7 +17,7 @@ cd ~/MagicMirror/modules
 
 Clone this repository:
 ````
-git clone https://github.com/tosti007/MMM-ProfileSwitcher.git
+git clone https://github.com/BigMac1999/MMM-ProfileSwitcher
 ````
 
 ## Using the module
