@@ -1,5 +1,5 @@
 {
-  "leave": "Until next time %profile%!",
-  "enter": "Hello %profile%, nice to see you again!",
+  "outgoing": "Until next time %profile%!",
+  "incoming": "Hello %profile%, nice to see you again!",
   "title": "User Profile"
 }

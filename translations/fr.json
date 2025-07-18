@@ -1,5 +1,5 @@
 {
-  "leave": "A Bientôt %profile%!",
-  "enter": "Bonjour %profile%, content de te revoir!",
+  "outgoing": "A Bientôt %profile%!",
+  "incoming": "Bonjour %profile%, content de te revoir!",
   "title": "Profil Utilisateur"
 }
