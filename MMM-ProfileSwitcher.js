@@ -67,7 +67,6 @@ Module.register("MMM-ProfileSwitcher", {
     // Show a random notification depending on the change of profile and the config settings
     makeNotification: function (messages) {
         Log.info("ProfileSwitcher making notification for profile: " + this.current_profile);
-        Log.log("ProfileSwitcher messages object:", messages);
         if (messages) {
             var text = messages[this.current_profile];
 
@@ -116,18 +115,14 @@ Module.register("MMM-ProfileSwitcher", {
             if (currentProfileModules.includes(module.name) || everyoneModules.includes(module.name)) {
                 // Show the module
                 Log.info("ProfileSwitcher showing module: " + module.name);
-                console.log("ProfileSwitcher showing module: " + module.name);
                 module.show(self.config.animationDuration, function () {
                     Log.info("ProfileSwitcher " + module.name + " is now shown.");
-                    console.log("ProfileSwitcher " + module.name + " is now shown.");
                 });
             } else {
                 // Hide the module
                 Log.info("ProfileSwitcher hiding module: " + module.name);
-                console.log("ProfileSwitcher hiding module: " + module.name);
                 module.hide(self.config.animationDuration, function () {
                     Log.info("ProfileSwitcher " + module.name + " is now hidden.");
-                    console.log("ProfileSwitcher " + module.name + " is now hidden.");
                 });
             }
         });
