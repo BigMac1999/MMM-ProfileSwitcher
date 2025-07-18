@@ -11,9 +11,11 @@
 Module.register("MMM-ProfileSwitcher", {
     defaults: {
         // The name of the class which should be shown on startup and when there is no current profile.
-        defaultClass: "default",
-        // The name of the class which should be shown for every profile.
-        everyoneClass: "everyone",
+        // defaultClass: "default",
+        // The name of the profile that should be shown on startup.
+        defaultProfile: "Default",
+        // // The name of the class which should be shown for every profile.
+        // everyoneClass: "everyone",
         // Determines if the default class includes the classes that everyone has.
         includeEveryoneToDefault: false,
         // Determines if a leaveMessage should be shown when switching between two custom profiles (excluding defaultClass).
@@ -44,7 +46,10 @@ Module.register("MMM-ProfileSwitcher", {
         defaultTime: 60000,
         // Timers for different profiles. A timer lets you automatically swap to a different profile after a certain amount of time. 
         // Check README.md for configuration
-        timers: undefined
+        timers: undefined,
+
+        // Modules that should be visible for everyone, regardless of profile
+        everyone: [], 
     },
 
     // Override the default getTranslations function
@@ -61,6 +66,8 @@ Module.register("MMM-ProfileSwitcher", {
 
     // Show a random notification depending on the change of profile and the config settings
     makeNotification: function (messages) {
+        Log.info("ProfileSwitcher making notification for profile: " + this.current_profile);
+        Log.log("ProfileSwitcher messages object:", messages);
         if (messages) {
             var text = messages[this.current_profile];
 
@@ -77,41 +84,51 @@ Module.register("MMM-ProfileSwitcher", {
                     ? text[0]
                     : text[Math.floor(Math.random() * text.length)];
 
+                Log.info("ProfileSwitcher sending notification with message: " + text);
                 this.sendNotification("SHOW_ALERT", {
                     type: "notification",
                     title: this.config.title,
                     message: text.replace("%profile%", this.current_profile)
                 });
+            } else {
+                Log.info("ProfileSwitcher no messages to show for profile: " + this.current_profile);
             }
         }
     },
 
-    // Return a function that checks if the given module data should be displayed for the current profile
-    isVisible: function (self, useEveryone, classes) {
-        return classes.indexOf(self.current_profile) !== -1 ||                     // Does this module include the profile?
-               (useEveryone && classes.indexOf(self.config.everyoneClass) !== -1); // Should everyone see this module?
-    },
-
     // Change the current layout into the new layout given the current profile
-    set_profile: function (useEveryone) {
+    set_profile: function (newProfile) {
         var self = this;
 
-        options = {};
-        if (self.config.useLockStrings) {
-            options.lockString = self.identifier;
-        }
-
+        Log.info("ProfileSwitcher set_profile called with: " + newProfile);
+        //Get all modules except the ones in ignoreModules
         var modules = MM.getModules().exceptWithClass(self.config.ignoreModules);
+        Log.info("ProfileSwitcher setting profile to " + newProfile + " for modules: " + modules.map(m => m.name).join(", "));
+        //Get all the modules for the current profile from the config
+        var currentProfileModules = this.config.profiles.find(profile => profile.name === newProfile)?.modules || [];
+        Log.info("ProfileSwitcher current profile modules: " + currentProfileModules.join(", "));
+        //Get the modules that everyone should see
+        var everyoneModules = this.config.everyone || [];
+        Log.info("ProfileSwitcher everyone modules: " + everyoneModules.join(", "));
+        //Go through all modules and check if they are in the current profile
         modules.enumerate(function (module) {
-            if (self.isVisible(self, useEveryone, module.data.classes.split(" "))) {
+            // If the module is in the current profile or if it is a module that everyone should see
+            if (currentProfileModules.includes(module.name) || everyoneModules.includes(module.name)) {
+                // Show the module
+                Log.info("ProfileSwitcher showing module: " + module.name);
+                console.log("ProfileSwitcher showing module: " + module.name);
                 module.show(self.config.animationDuration, function () {
-                    Log.log(module.name + " is shown.");
-                }, options);
-
+                    Log.info("ProfileSwitcher " + module.name + " is now shown.");
+                    console.log("ProfileSwitcher " + module.name + " is now shown.");
+                });
             } else {
+                // Hide the module
+                Log.info("ProfileSwitcher hiding module: " + module.name);
+                console.log("ProfileSwitcher hiding module: " + module.name);
                 module.hide(self.config.animationDuration, function () {
-                    Log.log(module.name + " is hidden.");
-                }, options);
+                    Log.info("ProfileSwitcher " + module.name + " is now hidden.");
+                    console.log("ProfileSwitcher " + module.name + " is now hidden.");
+                });
             }
         });
 
@@ -126,48 +143,57 @@ Module.register("MMM-ProfileSwitcher", {
         clearTimeout(this.timer);
         this.timer = setTimeout(this.change_profile.bind(this), 
             data.time    || this.config.defaultTime, 
-            data.profile || this.config.defaultClass);
+            data.profile || this.config.defaultProfile);
     },
 
     // Take a different order of actions depening on the new profile
     // This way, when we go back to the default profile we can show a different notification
     change_profile: function (newProfile) {
+        Log.info("ProfileSwitcher change_profile called. Current: " + this.current_profile + ", New: " + newProfile);
         // No need to change the layout if we are already in this current profile
         if (newProfile !== this.current_profile) {
-            this.sendNotification("CHANGED_PROFILE", {from: this.current_profile, to: newProfile});
+            Log.info("ProfileSwitcher sending CHANGED_PROFILE notification with: " + newProfile);
+            this.sendNotification("CHANGED_PROFILE", newProfile);
 
-            if (newProfile == this.config.defaultClass) {
-                Log.log("Changing to default profile.");
+            if (newProfile == this.config.defaultProfile) {
+                Log.info("ProfileSwitcher changing to default profile.");
 
                 this.makeNotification(this.config.leaveMessages);
                 this.current_profile = newProfile;
-                this.set_profile(this.config.includeEveryoneToDefault);
+                this.set_profile(newProfile);
 
             } else {
-                Log.log("Changing to profile " + newProfile + ".");
+                Log.info("ProfileSwitcher changing to profile " + newProfile + ".");
 
-                if (this.config.alwaysShowLeave && this.current_profile !== this.config.defaultClass) {
+                if (this.config.alwaysShowLeave && this.current_profile !== this.config.defaultProfile) {
                     this.makeNotification(this.config.leaveMessages);
                 }
 
                 this.current_profile = newProfile;
                 this.makeNotification(this.config.enterMessages);
-                this.set_profile(true);
+                this.set_profile(newProfile);
             }
+        } else {
+            Log.info("ProfileSwitcher already on profile " + newProfile + ", no change needed.");
         }
     },
 
     // Override the default NotificationRecieved function
     notificationReceived: function (notification, payload, sender) {
+        Log.info("ProfileSwitcher notification received: " + notification + " with payload: " + payload + " from sender: " + (sender ? sender.name : "system"));
         if (notification === "DOM_OBJECTS_CREATED") {
-            Log.log("Hiding all non default modules.");
-            this.set_profile(this.config.includeEveryoneToDefault);
-            this.sendNotification("CHANGED_PROFILE", {to: this.config.defaultClass});
+            Log.info("ProfileSwitcher DOM objects created, setting up default profile.");
+            // this.set_profile(this.config.includeEveryoneToDefault);
+            this.set_profile(this.config.defaultProfile);
+            this.sendNotification("CHANGED_PROFILE", this.config.defaultProfile);
         } else if (notification === "CURRENT_PROFILE") {
+            Log.info("ProfileSwitcher received CURRENT_PROFILE notification, changing to: " + payload);
             this.change_profile(payload);
         } else if (notification === "DISABLE_PROFILE_TIMERS"){
+            Log.info("ProfileSwitcher disabling profile timers.");
             clearTimeout(this.timer);
         } else if (notification === "ENABLE_PROFILE_TIMERS"){
+            Log.info("ProfileSwitcher enabling profile timers.");
             if (this.config.timers && this.config.timers[this.current_profile]){
                 this.set_timer(this.config.timers[this.current_profile]);
             }
@@ -178,8 +204,10 @@ Module.register("MMM-ProfileSwitcher", {
     // Do this in start function and not in actual making of the notification.
     // This way we don't have to bother about it in that method and we only have to parse them all once.
     start: function () {
+        Log.info("ProfileSwitcher starting up...");
         this.timer = null;
-        this.current_profile = this.config.defaultClass;
+        this.current_profile = this.config.defaultProfile;
+        Log.info("ProfileSwitcher default profile set to: " + this.current_profile);
 
         if (typeof this.config.ignoreModules === "string") {
             this.config.ignoreModules = this.config.ignoreModules.split(" ");
